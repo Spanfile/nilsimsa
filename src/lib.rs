@@ -1,5 +1,11 @@
 #![feature(test)]
 
+//! Implementation of the Nilsimsa locality-sensitive hashing algorithm.
+//!
+//! Compared to "traditional" hash functions (cryptographic or not), a small modification to the input does not
+//! substantially change the resulting hash. This crate contains the [Nilsimsa](Nilsimsa) utility to calculate Nilsimsa
+//! hash digests, as well as a [compare](comparison) function for given digests.
+
 const TRAN: [u8; 256] = [
     0x02, 0xd6, 0x9e, 0x6f, 0xf9, 0x1d, 0x04, 0xab, 0xd0, 0x22, 0x16, 0x1f, 0xd8, 0x73, 0xa1, 0xac, 0x3b, 0x70, 0x62,
     0x96, 0x1e, 0x6e, 0x8f, 0x39, 0x9d, 0x05, 0x14, 0x4a, 0xa6, 0xbe, 0xae, 0x0e, 0xcf, 0xb9, 0x9c, 0x9a, 0xc7, 0x68,
@@ -34,6 +40,7 @@ const POPC: [u8; 256] = [
     0x07, 0x05, 0x06, 0x06, 0x07, 0x06, 0x07, 0x07, 0x08,
 ];
 
+/// Utility to calculate Nilsimsa hash digests for arbitrarily long string inputs.
 #[derive(Debug, Clone)]
 pub struct Nilsimsa {
     num_char: usize,
@@ -52,6 +59,12 @@ impl Default for Nilsimsa {
 }
 
 impl Nilsimsa {
+    /// Returns a new Nilsimsa hash digest utility.
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    /// Updates the digest with a given string.
     pub fn update(&mut self, s: &str) {
         for c in s.bytes() {
             self.num_char += 1;
@@ -82,6 +95,7 @@ impl Nilsimsa {
         }
     }
 
+    /// Finalise and consume the digest and return the computed Nilsimsa hash digest as a hex string.
     pub fn digest(self) -> String {
         let num_trigrams = match self.num_char {
             0..=2 => 0,
@@ -104,7 +118,10 @@ impl Nilsimsa {
     }
 }
 
-pub fn compare(digest_a: &str, digest_b: &str, threshold: Option<u8>) -> u8 {
+/// Compare two hex digests with a Hamming distance calculation. Returns an unsigned 8-bit integer in the range `[0,
+/// 128]` representing the similarity of the two input digests, where 0 is most dissimilar and 128 is most similar, or
+/// equal. The input strings must be of the same length.
+pub fn compare(digest_a: &str, digest_b: &str) -> u8 {
     assert!(digest_a.len() == digest_b.len());
 
     let hex_a = hex::decode(digest_a).expect("failed to decode digest A into hex");
@@ -113,10 +130,6 @@ pub fn compare(digest_a: &str, digest_b: &str, threshold: Option<u8>) -> u8 {
 
     for (a, b) in hex_a.into_iter().zip(hex_b) {
         bits += POPC[(a ^ b) as usize] as u8;
-        match threshold {
-            Some(t) if bits > t => break,
-            _ => (),
-        }
     }
 
     128 - bits
@@ -134,57 +147,56 @@ mod tests {
     use super::*;
     use test::Bencher;
 
-    #[test]
-    fn expected_output() {
-        let mut hash = Nilsimsa::default();
-        hash.update("test string");
-        let output = hash.digest();
-
-        assert_eq!(
-            output,
-            "42c82c184080082040001004000000084e1043b0c0925829003e84c860410010"
-        );
-    }
-
-    #[test]
-    fn compare_equal() {
-        let hash_a = String::from("42c82c184080082040001004000000084e1043b0c0925829003e84c860410010");
-        let hash_b = hash_a.clone();
-
-        assert_eq!(compare(&hash_a, &hash_b, None), 128);
-    }
-
-    #[test]
-    fn compare_almost_equal() {
-        // input: test string
-        let hash_a = String::from("42c82c184080082040001004000000084e1043b0c0925829003e84c860410010");
-        // input: best strong
-        let hash_b = String::from("00480cba20810802408000000400000a481091b088b21e21003e840a20011016");
-
-        assert_eq!(compare(&hash_a, &hash_b, None), 90);
-    }
-
-    #[test]
-    fn compare_very_dissimilar() {
-        // input: Dear Bill, Please be ready to receive the money.
-        let hash_a = String::from("51613b08c286b8054e09847c51928935289e623b63308db6b1606b0883804264");
-        // input: Dear Mark, I hope you are okay.
-        let hash_b = String::from("1db4dd17fb93907f2dbb52a5d7dddc268f15545be7da0f75efcb0f9df7cc65b3");
-
-        assert_eq!(compare(&hash_a, &hash_b, None), 1);
-    }
-
     #[bench]
-    fn bench_short_string(b: &mut Bencher) {
+    fn expected_output(b: &mut Bencher) {
         b.iter(|| {
             let mut hash = Nilsimsa::default();
             hash.update("test string");
-            let _o = hash.digest();
+            let output = hash.digest();
+
+            assert_eq!(
+                output,
+                "42c82c184080082040001004000000084e1043b0c0925829003e84c860410010"
+            );
         })
     }
 
     #[bench]
-    fn bench_long_string(b: &mut Bencher) {
+    fn compare_equal(b: &mut Bencher) {
+        b.iter(|| {
+            let hash_a = String::from("42c82c184080082040001004000000084e1043b0c0925829003e84c860410010");
+            let hash_b = hash_a.clone();
+
+            assert_eq!(compare(&hash_a, &hash_b), 128);
+        });
+    }
+
+    #[bench]
+    fn compare_almost_equal(b: &mut Bencher) {
+        b.iter(|| {
+            // input: test string
+            let hash_a = String::from("42c82c184080082040001004000000084e1043b0c0925829003e84c860410010");
+            // input: best strong
+            let hash_b = String::from("00480cba20810802408000000400000a481091b088b21e21003e840a20011016");
+
+            assert_eq!(compare(&hash_a, &hash_b), 90);
+        });
+    }
+
+    #[bench]
+    fn compare_very_dissimilar(b: &mut Bencher) {
+        b.iter(|| {
+            // input: Dear Bill, Please be ready to receive the money.
+            let hash_a = String::from("51613b08c286b8054e09847c51928935289e623b63308db6b1606b0883804264");
+            // input: Dear Mark, I hope you are okay.
+            let hash_b = String::from("1db4dd17fb93907f2dbb52a5d7dddc268f15545be7da0f75efcb0f9df7cc65b3");
+
+            assert_eq!(compare(&hash_a, &hash_b), 1);
+        });
+    }
+
+    #[bench]
+    fn long_string(b: &mut Bencher) {
         b.iter(|| {
             let mut hash = Nilsimsa::default();
             hash.update(
@@ -215,7 +227,12 @@ mod tests {
                  Integer bibendum diam sed turpis hendrerit sodales. Ut hendrerit auctor enim, volutpat bibendum \
                  risus dapibus in.",
             );
-            let _o = hash.digest();
+            let output = hash.digest();
+
+            assert_eq!(
+                output,
+                "9b8c8a910218eb47d0f283c5ac948ba12c0ba8112513eae8291befdca3f4e066"
+            );
         })
     }
 }
