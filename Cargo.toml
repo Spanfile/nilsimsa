@@ -1,7 +1,13 @@
 [package]
 authors = ["Spanfile <spansdev@gmail.com>"]
+categories = ["algorithms"]
+description = "Implementation of the Nilsimsa locality-sensitive hashing algorithm."
 edition = "2018"
+keywords = ["algorithms", "nilsamsa", "locality-sensitive"]
+license = "MIT"
 name = "nilsimsa"
+readme = "README.md"
+repository = "https://github.com/Spanfile/nilsimsa"
 version = "0.1.0"
 
 [dependencies]

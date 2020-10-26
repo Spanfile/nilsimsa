@@ -5,6 +5,19 @@
 //! Compared to "traditional" hash functions (cryptographic or not), a small modification to the input does not
 //! substantially change the resulting hash. This crate contains the [Nilsimsa](Nilsimsa) utility to calculate Nilsimsa
 //! hash digests, as well as a [compare](comparison) function for given digests.
+//!
+//! ```rust
+//! # use nilsimsa::*;
+//! # fn main() {
+//! let mut hasher = Nilsimsa::new();
+//! hasher.update("test string");
+//! let digest = hasher.digest();
+//! assert_eq!(
+//!     digest,
+//!     "42c82c184080082040001004000000084e1043b0c0925829003e84c860410010"
+//! );
+//! # }
+//! ```
 
 const TRAN: [u8; 256] = [
     0x02, 0xd6, 0x9e, 0x6f, 0xf9, 0x1d, 0x04, 0xab, 0xd0, 0x22, 0x16, 0x1f, 0xd8, 0x73, 0xa1, 0xac, 0x3b, 0x70, 0x62,
@@ -40,7 +53,8 @@ const POPC: [u8; 256] = [
     0x07, 0x05, 0x06, 0x06, 0x07, 0x06, 0x07, 0x07, 0x08,
 ];
 
-/// Utility to calculate Nilsimsa hash digests for arbitrarily long string inputs.
+/// Utility to calculate Nilsimsa hash digests for arbitrarily long string inputs. See the crate-level documentation for
+/// an example of use.
 #[derive(Debug, Clone)]
 pub struct Nilsimsa {
     num_char: usize,
@@ -121,6 +135,23 @@ impl Nilsimsa {
 /// Compare two hex digests with a Hamming distance calculation. Returns an unsigned 8-bit integer in the range `[0,
 /// 128]` representing the similarity of the two input digests, where 0 is most dissimilar and 128 is most similar, or
 /// equal. The input strings must be of the same length.
+///
+/// ```rust
+/// # use nilsimsa::*;
+/// # fn main() {
+/// let similar = compare(
+///     "42c82c184080082040001004000000084e1043b0c0925829003e84c860410010",
+///     "00480cba20810802408000000400000a481091b088b21e21003e840a20011016",
+/// );
+/// assert_eq!(similar, 90);
+///
+/// let very_dissimilar = compare(
+///     "51613b08c286b8054e09847c51928935289e623b63308db6b1606b0883804264",
+///     "1db4dd17fb93907f2dbb52a5d7dddc268f15545be7da0f75efcb0f9df7cc65b3",
+/// );
+/// assert_eq!(very_dissimilar, 1);
+/// # }
+/// ```
 pub fn compare(digest_a: &str, digest_b: &str) -> u8 {
     assert!(digest_a.len() == digest_b.len());
 
