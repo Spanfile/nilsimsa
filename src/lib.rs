@@ -5,7 +5,7 @@
 //!
 //! Compared to "traditional" hash functions (cryptographic or not), a small modification to the input does not
 //! substantially change the resulting hash. This crate contains the [Nilsimsa](Nilsimsa) utility to calculate Nilsimsa
-//! hash digests, as well as a [compare](comparison) function for given digests.
+//! hash digests, as well as a [compare](compare) function for given digests.
 //!
 //! ```rust
 //! # use nilsimsa::*;
