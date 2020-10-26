@@ -1,3 +1,4 @@
+#![doc(html_root_url = "https://docs.rs/nilsimsa/0.1.0")]
 #![feature(test)]
 
 //! Implementation of the Nilsimsa locality-sensitive hashing algorithm.
