@@ -37,7 +37,7 @@ const TRAN: [u8; 256] = [
     0xc4, 0x37, 0xc8, 0xd2, 0xf6, 0xdf, 0x58, 0x72, 0x4e,
 ];
 
-const POPC: [u8; 256] = [
+const POPC: [i16; 256] = [
     0x00, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x03, 0x01, 0x02, 0x02, 0x03, 0x02, 0x03, 0x03, 0x04, 0x01, 0x02, 0x02,
     0x03, 0x02, 0x03, 0x03, 0x04, 0x02, 0x03, 0x03, 0x04, 0x03, 0x04, 0x04, 0x05, 0x01, 0x02, 0x02, 0x03, 0x02, 0x03,
     0x03, 0x04, 0x02, 0x03, 0x03, 0x04, 0x03, 0x04, 0x04, 0x05, 0x02, 0x03, 0x03, 0x04, 0x03, 0x04, 0x04, 0x05, 0x03,
@@ -133,8 +133,8 @@ impl Nilsimsa {
     }
 }
 
-/// Compare two hex digests with a Hamming distance calculation. Returns an unsigned 8-bit integer in the range `[0,
-/// 128]` representing the similarity of the two input digests, where 0 is most dissimilar and 128 is most similar, or
+/// Compare two hex digests with a Hamming distance calculation. Returns an `i16` in the range `[-128, 128]`
+/// representing the similarity of the two input digests, where -128 is most dissimilar and 128 is most similar, or
 /// equal. The input strings must be of the same length.
 ///
 /// ```rust
@@ -153,7 +153,7 @@ impl Nilsimsa {
 /// assert_eq!(very_dissimilar, 1);
 /// # }
 /// ```
-pub fn compare(digest_a: &str, digest_b: &str) -> u8 {
+pub fn compare(digest_a: &str, digest_b: &str) -> i16 {
     assert!(digest_a.len() == digest_b.len());
 
     let hex_a = hex::decode(digest_a).expect("failed to decode digest A into hex");
@@ -161,7 +161,7 @@ pub fn compare(digest_a: &str, digest_b: &str) -> u8 {
     let mut bits = 0;
 
     for (a, b) in hex_a.into_iter().zip(hex_b) {
-        bits += POPC[(a ^ b) as usize] as u8;
+        bits += POPC[(a ^ b) as usize];
     }
 
     128 - bits
@@ -218,13 +218,35 @@ mod tests {
     #[bench]
     fn compare_very_dissimilar(b: &mut Bencher) {
         b.iter(|| {
-            // input: Dear Bill, Please be ready to receive the money.
-            let hash_a = String::from("51613b08c286b8054e09847c51928935289e623b63308db6b1606b0883804264");
-            // input: Dear Mark, I hope you are okay.
-            let hash_b = String::from("1db4dd17fb93907f2dbb52a5d7dddc268f15545be7da0f75efcb0f9df7cc65b3");
+            let hash_a = String::from("0000000000000000000000000000000000000000000000000000000000000000");
+            let hash_b = String::from("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
-            assert_eq!(compare(&hash_a, &hash_b), 1);
+            assert_eq!(compare(&hash_a, &hash_b), -128);
         });
+    }
+
+    #[test]
+    fn compare_zero_with_zero() {
+        let hash_a = "0000000000000000000000000000000000000000000000000000000000000000";
+        let hash_b = "0000000000000000000000000000000000000000000000000000000000000000";
+
+        assert_eq!(compare(&hash_a, &hash_b), 128);
+    }
+
+    #[test]
+    fn compare_zero_with_nonzero() {
+        let hash_a = "0000000000000000000000000000000000000000000000000000000000000000";
+        let hash_b = "6402a0021082c8320943c018f2003023ad0820205844ba30813d00dc0620d18c";
+
+        assert_eq!(compare(&hash_a, &hash_b), 51);
+    }
+
+    #[test]
+    fn compare_known_crash() {
+        let hash_a = "6d2bbcd2b1dbf71af96fd19bfa34a0a3ff69b8fc7c50ba1e7ffd8e3e76b2e7da";
+        let hash_b = "5c10c0c61f96920d094a6d8575316dd007330b82fb6c434f7034c008c3d4f8a9";
+
+        assert_eq!(compare(&hash_a, &hash_b), -9);
     }
 
     #[bench]
@@ -266,5 +288,35 @@ mod tests {
                 "9b8c8a910218eb47d0f283c5ac948ba12c0ba8112513eae8291befdca3f4e066"
             );
         })
+    }
+
+    #[test]
+    fn short_strings() {
+        let mut hash = Nilsimsa::default();
+        hash.update("a");
+        let output = hash.digest();
+
+        assert_eq!(
+            output,
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        );
+
+        let mut hash = Nilsimsa::default();
+        hash.update("aa");
+        let output = hash.digest();
+
+        assert_eq!(
+            output,
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        );
+
+        let mut hash = Nilsimsa::default();
+        hash.update("aaa");
+        let output = hash.digest();
+
+        assert_eq!(
+            output,
+            "0000000000000000000000000000000040000000000000000000000000000000"
+        );
     }
 }
