@@ -59,7 +59,7 @@ const POPC: [i16; 256] = [
 #[derive(Debug, Clone)]
 pub struct Nilsimsa {
     num_char: usize,
-    acc: Vec<u8>,
+    acc: Vec<u32>,
     window: Vec<u8>,
 }
 
@@ -247,6 +247,21 @@ mod tests {
         let hash_b = "5c10c0c61f96920d094a6d8575316dd007330b82fb6c434f7034c008c3d4f8a9";
 
         assert_eq!(compare(&hash_a, &hash_b), -9);
+    }
+
+    #[test]
+    fn compare_with_all_utf8_codepoints() {
+        let all_chars: String = (0..=0x10FFFF)
+            .filter_map(std::char::from_u32)
+            .collect();
+        let mut hash = Nilsimsa::default();
+        hash.update(all_chars.as_str());
+        let output = hash.digest();
+
+        assert_eq!(
+            output,
+            "b03426d6155daaa4c45e095f89e25c3accabd1db36143318b8297c4a0607507a"
+        );
     }
 
     #[bench]
